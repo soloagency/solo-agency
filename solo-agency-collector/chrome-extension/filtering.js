@@ -56,6 +56,7 @@
 
   const NOISE_ROLES = new Set([
     "banner",
+    "complementary",
     "navigation",
     "menu",
     "menubar",
@@ -367,6 +368,115 @@
   );
   const FULL_DATE_TIME_RE = /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday),\s+[a-z]+\s+\d{1,2},\s+\d{4}\s+at\s+\d{1,2}:\d{2}(?::\d{2})?\s*(am|pm)?(?:\s+[a-z]{2,4})?$/i;
 
+  // --- Scope guards (2026-09-18) -------------------------------------------------------
+  // A run of angela-do's group monitor wrote the operator's private Messenger conversation —
+  // message text, sender names and read receipts — into a client's harvest file, and turned an
+  // x.com link shared in that chat into the record's profile_url. Three independent guards, so
+  // that no single change on Facebook's side restores the leak:
+  //   1. pickContentRoot  — read only the page's content landmark, not the whole body.
+  //   2. isOffPlatformHost — a link to another platform is never a post of THIS page.
+  //   3. findChatSurfaces  — a subtree whose links are /messages/ threads is chat UI.
+  // They fail in different ways on purpose: 1 is structural, 2 is URL-only, 3 is URL-only and
+  // structure-free. Guard 1 degrades to the old whole-body scan rather than to an empty read.
+
+  // Which platform a host belongs to.
+  // Registrable domains, matched as host === domain or host endsWith "." + domain. NOT the
+  // host.includes("facebook.") style used elsewhere in this file: a substring test reads
+  // facebook.com.evil.example as Facebook, and this list decides whether a link is trusted as
+  // the page's own content.
+  const PLATFORM_GROUPS = [
+    ["facebook", ["facebook.com", "fb.watch", "fb.com", "fb.me"]],
+    ["x", ["x.com", "twitter.com"]],
+    ["instagram", ["instagram.com"]],
+    ["linkedin", ["linkedin.com"]],
+    ["youtube", ["youtube.com", "youtu.be"]],
+    ["tiktok", ["tiktok.com"]],
+    ["threads", ["threads.com", "threads.net"]],
+    ["reddit", ["reddit.com"]],
+  ];
+
+  function platformGroupOf(hostOrUrl) {
+    let host = String(hostOrUrl || "").toLowerCase();
+    if (host.includes("/") || host.includes(":")) {
+      const parsed = safeUrl(hostOrUrl);
+      if (!parsed) return "";
+      host = parsed.hostname.toLowerCase();
+    }
+    host = host.replace(/^www\./, "");
+    if (!host) return "";
+    for (const [key, domains] of PLATFORM_GROUPS) {
+      if (domains.some((domain) => host === domain || host.endsWith("." + domain))) return key;
+    }
+    return "";
+  }
+
+  // Set for the duration of one filterSocialHtml() call, from the url of the page being read.
+  // Empty for a page belonging to no platform (a search results page, a company website): there,
+  // finding a facebook.com post link IS the job, so the gate stays off and nothing changes.
+  let activePlatformGroup = "";
+  // Chat containers found in the page being read; see findChatSurfaces.
+  let activeChatNodes = null;
+  // The content landmark of the page being read, when it has one. Everything outside it is
+  // suppressed — it is a boundary, never the traversal root: choosePostContainers stops
+  // climbing at the root, so making the landmark the root would change which element can be
+  // chosen as a post container and empties flat pages (a search results page, measured).
+  let activeContentRoot = null;
+
+  function isOutsideContentRoot(node) {
+    if (!activeContentRoot || !node) return false;
+    let current = isElementNode(node) ? node : parentElement(node);
+    while (current) {
+      if (current === activeContentRoot) return false;
+      current = parentElement(current);
+    }
+    return true;
+  }
+
+  function isOffPlatformHost(host) {
+    if (!activePlatformGroup) return false;
+    const group = platformGroupOf(host);
+    return !!group && group !== activePlatformGroup;
+  }
+
+  // A chat/DM surface, recognised by what its links ARE rather than by a role or a label.
+  // Measured on a live facebook.com group page (2026-09-18): the Messenger drawer carried 16
+  // anchors and all 16 were /messages/t/ or /messages/e2ee/t/ permalinks. A role can be dropped
+  // by a redesign and an aria-label is translated per market ("Messenger" in English, "Đoạn
+  // chat" in Vietnamese), so neither could carry this check. Walks anchors directly instead of
+  // calling collectLinks, which consults the result of this pass.
+  const CHAT_URL_RE = /\/messages\/(e2ee\/)?t\//i;
+  const CHAT_MIN_LINKS = 3;
+  const CHAT_LINK_SHARE = 0.6;
+  const CHAT_MAX_DEPTH = 25;
+
+  function findChatSurfaces(root, baseUrl) {
+    const stats = new Map();
+    walkElements(root, (node) => {
+      const tag = tagName(node);
+      if (tag !== "a" && tag !== "area") return true;
+      const url = normalizeUrl(getAttr(node, "href"), baseUrl);
+      if (!url) return true;
+      const chat = CHAT_URL_RE.test(url) ? 1 : 0;
+      let current = parentElement(node);
+      let depth = 0;
+      while (current && depth < CHAT_MAX_DEPTH) {
+        let entry = stats.get(current);
+        if (!entry) { entry = { chat: 0, total: 0 }; stats.set(current, entry); }
+        entry.total += 1;
+        entry.chat += chat;
+        current = parentElement(current);
+        depth += 1;
+      }
+      return true;
+    });
+
+    const found = new Set();
+    for (const [node, entry] of stats) {
+      if (entry.chat >= CHAT_MIN_LINKS && entry.chat / entry.total >= CHAT_LINK_SHARE) found.add(node);
+    }
+    return found;
+  }
+
   const SOCIAL_HOST_PARTS = [
     "facebook.",
     "fb.watch",
@@ -381,6 +491,39 @@
     "reddit.",
   ];
 
+  // The region of the page a capture may read. Facebook renders the left rail, the top bar and
+  // the Messenger drawer OUTSIDE [role=main]: measured on a live group page, 5,918 of that
+  // page's 7,186 characters and 46 of its 91 links sat outside it, the chat drawer included.
+  // role=main / role=feed are ARIA landmarks — fixed tokens from the W3C spec, identical in
+  // every language and market, unlike aria-label. When neither is present (a redesign, a page
+  // that has none) the original root is returned, so a capture degrades to the pre-2026-09-18
+  // whole-body scan rather than to nothing. The choice is reported on the result, so the next
+  // structure change is visible in the data instead of silently widening the scan again.
+  function pickContentRoot(root) {
+    if (!isElementNode(root)) return { root, kind: "no_element_root" };
+    let main = null;
+    let feed = null;
+    walkElements(root, (node) => {
+      if (main) return false;
+      const role = normalizeKey(getAttr(node, "role"));
+      if (role === "main" || tagName(node) === "main") { main = node; return false; }
+      if (!feed && role === "feed") feed = node;
+      return true;
+    });
+    const picked = main || feed;
+    if (!picked) return { root, kind: "body_fallback" };
+    // An empty or near-empty landmark must never cost the whole capture.
+    let anchors = 0;
+    walkElements(picked, (node) => {
+      if (tagName(node) === "a") anchors += 1;
+      return true;
+    });
+    if (!anchors && cleanText(textContentOf(picked) || "").length < 200) {
+      return { root, kind: "landmark_empty_fallback" };
+    }
+    return { root: picked, kind: main ? "role_main" : "role_feed" };
+  }
+
   function filterSocialHtml(input, options) {
     const opts = Object.assign(
       {
@@ -394,10 +537,18 @@
     );
 
     const parsed = parseInput(input, opts);
-    const root = parsed.root;
     const baseUrl = opts.currentUrl || parsed.baseUrl || "";
+    const root = parsed.root;
+    const scoped = pickContentRoot(root);
     const textMemo = new WeakMap();
     const linkMemo = new WeakMap();
+
+    // The three guards live for this call only. Plain assignments rather than a try/finally:
+    // every entry point sets them before reading anything, so a throw cannot leak a stale value
+    // into the next capture.
+    activePlatformGroup = platformGroupOf(baseUrl);
+    activeContentRoot = scoped.root === root ? null : scoped.root;
+    activeChatNodes = findChatSurfaces(root, baseUrl);
 
     const allLinks = collectLinks(root, baseUrl, linkMemo);
     const seedElements = collectSeedElements(root, allLinks);
@@ -460,6 +611,12 @@
       text,
       compactText: text,
       meta: {
+        // Scope evidence: which landmark was read, which platform the page was treated as, and
+        // how many chat containers were skipped. A record showing body_fallback where every
+        // other record shows role_main is the signal that Facebook moved the landmark.
+        contentRoot: scoped.kind,
+        platformGroup: activePlatformGroup,
+        chatSurfacesSkipped: activeChatNodes ? activeChatNodes.size : 0,
         inputMode: parsed.mode,
         seedCount: seedElements.length,
         candidateCount: candidateNodes.length,
@@ -476,6 +633,9 @@
       ).filter((line) => isMeaningfulLine(line, null));
     }
 
+    activePlatformGroup = "";
+    activeContentRoot = null;
+    activeChatNodes = null;
     return result;
   }
 
@@ -1799,7 +1959,7 @@
           }
           return;
         }
-        const nextBlocked = blocked || isNoiseContainer(node);
+        const nextBlocked = blocked || isNoiseContainer(node) || isOutsideContentRoot(node);
 
         for (const attrName of ["aria-label", "title", "alt"]) {
           const attrValue = cleanText(getAttr(node, attrName));
@@ -2078,6 +2238,9 @@
     const parsed = safeUrl(url);
     if (!parsed) return false;
     const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    // A link to a different platform is never a post OF THIS page — an x.com status shared on
+    // a facebook.com page is somebody's link, not that page's content.
+    if (isOffPlatformHost(host)) return false;
     const path = parsed.pathname.toLowerCase();
     const query = parsed.search.toLowerCase();
 
@@ -2115,6 +2278,7 @@
     if (isPostUrl(url)) return false;
 
     const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    if (isOffPlatformHost(host)) return false;
     const path = parsed.pathname.replace(/\/+$/, "");
     const lowerPath = path.toLowerCase();
     const segments = lowerPath.split("/").filter(Boolean);
@@ -2416,6 +2580,7 @@
   }
 
   function hasSuppressedChromeAncestor(node) {
+    if (isOutsideContentRoot(node)) return true;
     let current = isElementNode(node) ? node : parentElement(node);
     while (current) {
       if (isSuppressedChromeContainer(current)) return true;
@@ -2430,8 +2595,10 @@
     const role = normalizeKey(getAttr(node, "role"));
     const label = normalizeKey(getAttr(node, "aria-label") || getAttr(node, "title"));
 
-    if (tag === "nav" || tag === "header" || tag === "footer") return true;
+    if (activeChatNodes && activeChatNodes.has(node)) return true;
+    if (tag === "nav" || tag === "header" || tag === "footer" || tag === "aside") return true;
     if (role === "navigation" || role === "banner" || role === "menu" || role === "menubar" || role === "search" || role === "tooltip") return true;
+    if (role === "complementary") return true;
     if (role === "dialog" && /^(notifications|messenger|account controls and settings|facebook menu|menu|search)/.test(label)) return true;
     if (/^(notifications|account controls and settings|facebook menu)$/.test(label)) return true;
     return false;
@@ -2440,6 +2607,7 @@
   function isNoiseContainer(node) {
     const tag = tagName(node);
     const role = normalizeKey(getAttr(node, "role"));
+    if (activeChatNodes && activeChatNodes.has(node)) return true;
     if (tag === "nav" || tag === "header" || tag === "footer" || tag === "aside") return true;
     if (NOISE_ROLES.has(role)) return true;
     return false;
@@ -2718,6 +2886,7 @@
     parseMetricsFromText,
     isPostUrl,
     isAccountUrl,
+    platformGroupOf,
   };
 });
 

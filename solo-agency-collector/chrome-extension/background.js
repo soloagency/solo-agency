@@ -1472,6 +1472,8 @@ async function collectSource(source, job, settings, binding, sourceIndex) {
         scroll_debug: cap.scrollDebug || [],
         scroll_stopped_reason: cap.scrollStoppedReason || "",
         extraction_engine: cap.engine || "",
+        // Which page region the extraction actually read (filtering.js scope guards).
+        extraction_scope: cap.scope || null,
         tab_activation_mode: tabActivationPlan.mode,
         window_focus_requested: tabActivationPlan.focusWindow,
         tab_create_active: tabActivationPlan.createActive,

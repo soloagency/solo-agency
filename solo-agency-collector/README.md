@@ -92,6 +92,14 @@ Browser limits:
 - Keep that collector window at least partly visible. A window that another window covers completely is throttled by Chrome exactly like a background tab, and feeds stop rendering in it. Every data point records what the page saw (`collector_window.tab_visibility`, `timer_probe_ms`), so a covered window shows up in the data.
 - "Collect in a separate collector window" (extension popup) turns this off and returns to tabs in your current window.
 
+What a capture is allowed to read (`chrome-extension/filtering.js`, 2026-09-18):
+
+- **Only the page's content landmark.** Facebook renders the left rail, the top bar and the open Messenger drawer outside `[role=main]` — on a live group page that was 5,918 of 7,186 characters and 46 of 91 links. The extractor now treats `role=main` / `role=feed` as the boundary (ARIA landmarks: fixed tokens, identical in every language and market). No landmark on the page → the whole body is read, as before.
+- **A link to another platform is never a post of this page.** An `x.com` status shared on a `facebook.com` page is somebody's link, not that page's content. The gate is off on a page belonging to no platform, so `web.search` and the discovery pass still collect links into the platforms.
+- **A chat surface is skipped.** A subtree whose links are mostly `/messages/t/` threads is Messenger UI. This test is URL-only, so it survives a redesign and a translated interface.
+
+Each data point carries `extraction_scope`: `content_root` (`role_main` / `role_feed` / `body_fallback` / `landmark_empty_fallback`), `platform_group`, `chat_surfaces_skipped`. **`body_fallback` where other records show `role_main` means the landmark moved** — the scan has widened back to the whole page and the guards above are carrying it alone. `tests/test_filtering_scope.js` pins all three.
+
 On a LOCAL runtime — the agent's own shell IS the human's machine, e.g. Claude Code desktop/CLI or Codex CLI — the agent runs `setup_collector.sh`/`setup_collector.ps1` itself and the script registers persistent scheduler mode against an OS-level autostart supervisor on its own (see "Autostart at boot" in `AGENT_RUNBOOK.md`):
 
 - macOS LaunchAgent

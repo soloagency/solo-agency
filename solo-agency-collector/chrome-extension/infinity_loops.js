@@ -482,7 +482,16 @@
       // collector can fill the same data_point fields it always did.
       accountUrls: (filterResult && filterResult.links && filterResult.links.accounts) ? filterResult.links.accounts.filter(Boolean) : [],
       postUrls: (filterResult && filterResult.links && filterResult.links.posts) ? filterResult.links.posts.filter(Boolean) : [],
-      entityItems: (filterResult && filterResult.items) ? filterResult.items : []
+      entityItems: (filterResult && filterResult.items) ? filterResult.items : [],
+      // Which region of the page was read and which guards fired (filtering.js scope guards,
+      // 2026-09-18). Carried to the data point so a Facebook restructure that widens the scan
+      // back to the whole body — the shape that leaked the Messenger drawer — is visible in the
+      // harvest instead of only in the extension.
+      scope: (filterResult && filterResult.meta) ? {
+        content_root: filterResult.meta.contentRoot || "",
+        platform_group: filterResult.meta.platformGroup || "",
+        chat_surfaces_skipped: Number(filterResult.meta.chatSurfacesSkipped || 0)
+      } : null
     };
   };
 })();
