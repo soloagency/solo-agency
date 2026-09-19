@@ -47,7 +47,8 @@
       padding:40px 44px;display:flex;flex-direction:column;justify-content:center}
   }
   .lab{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint)}
-  .big{font-family:var(--serif);font-size:clamp(76px,17vw,158px);line-height:.88;letter-spacing:-.02em;margin:10px 0 12px}
+  .big{font-family:var(--serif);font-size:clamp(76px,17vw,158px);line-height:.88;letter-spacing:-.02em;margin:10px 0 12px;
+       max-width:100%;overflow-wrap:break-word}
   .big.sm{font-size:clamp(58px,12vw,108px);color:var(--gold)}
   .note{font-size:14px;line-height:1.55;color:var(--dim)}
 
@@ -271,8 +272,10 @@
   // The launch instant is midnight in Vietnam, so render it in Vietnam time for
   // everyone. Left to the viewer's own timezone, a reader in the US sees the day
   // before and the board contradicts every post that names the date.
+  // Abbreviated on purpose: this string also lands in the 108px serif slot built
+  // for "$212" and "03", where "September 20" ran straight out of the card.
   function launchDate(ts, withYear){
-    var o = {timeZone: 'Asia/Ho_Chi_Minh', month: 'long', day: 'numeric'};
+    var o = {timeZone: 'Asia/Ho_Chi_Minh', month: 'short', day: 'numeric'};
     if (withYear) o.year = 'numeric';
     return new Date(ts * 1000).toLocaleDateString('en-US', o);
   }
@@ -320,7 +323,8 @@
       $('wallNote').textContent = 'Seat 1 is still empty.';
       return;
     }
-    $('wallNote').textContent = wall.length + ' seats taken · seat numbers never change';
+    $('wallNote').textContent = wall.length + (wall.length === 1 ? ' seat' : ' seats')
+      + ' taken · seat numbers never change';
     wall.forEach(function(w){
       var r = document.createElement('div');
       r.className = 'row';
