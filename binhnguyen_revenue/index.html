@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Binh Nguyen — Public Revenue</title>
+<meta name="description" content="Binh Nguyen's revenue, straight from Stripe, public from $0.">
+<meta property="og:title" content="Binh Nguyen — public revenue, starting at $0">
+<meta property="og:description" content="Every number here is a public commit. Never edited by hand.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif&display=swap">
+<style>
+  :root{
+    --bg:#0C0B0E; --card:#131118; --line:#221F29; --row:#1A1622; --row2:#16131C;
+    --ink:#F4F1EC; --dim:#9C968D; --faint:#8B857C;
+    --gold:#E9A23B; --green:#7BD88F; --red:#F0705A;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --serif:'Instrument Serif',Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Be Vietnam Pro',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 16px 40px}
+  @media(min-width:880px){ .wrap{padding:44px 32px 64px} }
+
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .mark{font-family:var(--mono);font-size:12px;letter-spacing:.17em;text-transform:uppercase}
+  .mark span{color:var(--faint)}
+  .live{display:flex;align-items:center;gap:7px;padding:5px 11px;border:1px solid #2C2833;border-radius:999px}
+  .dot{width:7px;height:7px;border-radius:999px;background:var(--gold);animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .live b{font-family:var(--mono);font-size:11px;letter-spacing:.12em;font-weight:500;color:var(--gold)}
+  .ago{font-family:var(--mono);font-size:12px;color:var(--faint);margin-left:auto}
+
+  .card{border:1px solid var(--line);border-radius:16px;background:var(--card)}
+  .hero{display:flex;flex-direction:column;overflow:hidden;margin-bottom:14px}
+  @media(min-width:880px){ .hero{flex-direction:row} }
+  .hero .main{flex:1;padding:28px 24px}
+  .hero .side{padding:24px;border-top:1px solid var(--line)}
+  @media(min-width:880px){
+    .hero .main{padding:40px 44px}
+    .hero .side{width:340px;border-top:0;border-left:1px solid var(--line);
+      padding:40px 44px;display:flex;flex-direction:column;justify-content:center}
+  }
+  .lab{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint)}
+  .big{font-family:var(--serif);font-size:clamp(76px,17vw,158px);line-height:.88;letter-spacing:-.02em;margin:10px 0 12px}
+  .big.sm{font-size:clamp(58px,12vw,108px);color:var(--gold)}
+  .note{font-size:14px;line-height:1.55;color:var(--dim)}
+
+  .tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}
+  @media(min-width:880px){ .tiles{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px} }
+  .tile{padding:16px 18px;border:1px solid var(--line);border-radius:13px;background:var(--card)}
+  @media(min-width:880px){ .tile{padding:20px 22px} }
+  .tile .v{font-family:var(--mono);font-size:clamp(21px,5vw,28px);font-weight:500;margin-top:7px}
+  .tile .v small{font-size:13px;color:var(--faint);font-weight:400}
+
+  .band{padding:18px 20px;margin-bottom:14px}
+  @media(min-width:880px){ .band{padding:22px 26px} }
+  .bandhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .bandhead .r{margin-left:auto;font-size:13px;color:var(--dim)}
+  .bar{height:9px;border-radius:999px;background:#201D27;overflow:hidden}
+  .bar i{display:block;height:9px;border-radius:999px;background:var(--gold);width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:64px;margin-top:14px}
+  .spark i{flex:1;min-width:0;border-radius:1px;background:#272330}
+  .spark i.on{background:var(--gold)}
+
+  .wallhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .wallhead .r{margin-left:auto;font-size:13px;color:var(--dim)}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:var(--row2);margin-bottom:6px}
+  .row:nth-child(odd){background:var(--row)}
+  .row .seat{width:26px;font-family:var(--mono);font-size:13px;color:var(--faint);flex:none}
+  .row .seat.first{color:var(--gold)}
+  .row .flag{width:22px;font-size:15px;line-height:1;flex:none;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',var(--mono)}
+  .row .who{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .who.anon{color:var(--faint)}
+  .row .meta{font-family:var(--mono);font-size:12px;color:var(--faint);flex:none}
+  .row .plan{font-size:12px;color:var(--gold);flex:none}
+  .row .plan.out{color:var(--red)}
+  .row .cc{display:none;font-size:13px;color:var(--dim);width:96px;flex:none}
+  @media(min-width:880px){ .row{padding:11px 14px;gap:13px} .row .cc{display:block} }
+  .empty{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px dashed #302C39;border-radius:9px;margin-bottom:6px;color:var(--dim);font-size:14px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;padding-top:12px;margin-top:6px;border-top:1px solid var(--line);font-size:12px;color:var(--dim)}
+  .legend b{color:var(--ink);font-weight:500}
+
+  .cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:18px 0}
+  .btn{display:block;padding:14px 22px;border-radius:999px;font-size:15px;font-weight:600;text-decoration:none;text-align:center}
+  .btn.p{background:var(--gold);color:#120E07;flex:1}
+  .btn.s{border:1px solid #2C2833;color:var(--ink);font-weight:500;flex:1}
+  @media(min-width:880px){ .btn{flex:none !important} }
+
+  .chans{margin-top:14px}
+  .changrid{display:grid;grid-template-columns:1fr;gap:22px;margin-top:14px}
+  @media(min-width:720px){ .changrid{grid-template-columns:1fr 1fr;gap:34px} }
+  .chlab{font-size:13px;font-weight:600;margin-bottom:6px}
+  .chlab span{color:var(--faint);font-weight:400}
+  .ch{display:flex;align-items:baseline;gap:12px;padding:8px 0;
+      border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);font-size:14px}
+  .ch:last-of-type{border-bottom:0}
+  .ch em{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--faint);font-style:normal;
+         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:58%}
+  .ch:hover{color:var(--gold)}
+  .ch:hover em{color:var(--gold)}
+  .group{display:flex;align-items:center;gap:10px;margin-top:18px;padding:13px 16px;
+         border:1px solid #2C2833;border-radius:11px;text-decoration:none;color:var(--ink);font-size:14px}
+  .group:hover{border-color:var(--gold);color:var(--gold)}
+  .group b{font-weight:600}
+  .group span{margin-left:auto;color:var(--faint);font-family:var(--mono);font-size:18px;line-height:1}
+  .group:hover span{color:var(--gold)}
+
+  .foot{margin-top:18px;font-size:13px;line-height:1.6;color:var(--dim)}
+  .foot a{color:var(--gold)}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="mark">Binh Nguyen <span>/ public revenue</span></div>
+    <div class="live"><span class="dot"></span><b>LIVE</b></div>
+    <div class="ago" id="ago">loading…</div>
+  </div>
+
+  <div class="card hero">
+    <div class="main">
+      <div class="lab" id="totalLab">Total revenue</div>
+      <div class="big" id="total">$0</div>
+      <div class="note" id="totalNote">Includes every monthly renewal Stripe has charged, refunds already deducted.</div>
+    </div>
+    <div class="side">
+      <div class="lab" id="sideLab">Day</div>
+      <div class="big sm" id="sideVal">—</div>
+      <div class="note" id="sideNote">at zero.</div>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="lab" id="t1lab">Recurring revenue</div><div class="v" id="t1val">$0<small>/mo</small></div></div>
+    <div class="tile"><div class="lab">Seats taken</div><div class="v" id="seats">0</div></div>
+    <div class="tile"><div class="lab">Charges</div><div class="v" id="txns">0</div></div>
+    <div class="tile"><div class="lab">Refunds &amp; cancels</div><div class="v" id="refunds">$0</div></div>
+  </div>
+
+  <div class="card band">
+    <div class="bandhead">
+      <div class="lab">Next milestone</div>
+      <div class="r" id="goal">—</div>
+    </div>
+    <div class="bar"><i id="goalBar"></i></div>
+    <div class="spark" id="spark"></div>
+  </div>
+
+  <div class="card band">
+    <div class="wallhead">
+      <div class="lab">Front row</div>
+      <div class="r" id="wallNote">seat numbers never change</div>
+    </div>
+    <div id="wall"></div>
+    <div class="legend">
+      <span><b>Public</b> name + brand</span>
+      <span><b>Quiet</b> first name, the default</span>
+      <span><b>Hidden</b> seat number only</span>
+    </div>
+  </div>
+
+  <div class="cta">
+    <a class="btn s" id="ctaCode" href="#">Read the code behind this number</a>
+  </div>
+
+  <div class="card band chans">
+    <div class="lab">Follow the experiment</div>
+    <div class="changrid">
+
+      <div>
+        <div class="chlab">Vietnamese <span>— Binh Nguyen Solo</span></div>
+        <a class="ch" href="https://www.facebook.com/binhnguyen.solo.entrepreneur" target="_blank" rel="noopener">Facebook<em>binhnguyen.solo.entrepreneur</em></a>
+        <a class="ch" href="https://www.youtube.com/@binhnguyensolo" target="_blank" rel="noopener">YouTube<em>@binhnguyensolo</em></a>
+        <a class="ch" href="https://www.tiktok.com/@binhnguyensolo" target="_blank" rel="noopener">TikTok<em>@binhnguyensolo</em></a>
+        <a class="ch" href="https://x.com/binhnguyensolo" target="_blank" rel="noopener">X<em>@binhnguyensolo</em></a>
+        <a class="ch" href="https://www.linkedin.com/in/binhnguyensolo" target="_blank" rel="noopener">LinkedIn<em>in/binhnguyensolo</em></a>
+        <a class="ch" href="https://www.instagram.com/binhnguyensolo" target="_blank" rel="noopener">Instagram<em>@binhnguyensolo</em></a>
+        <a class="ch" href="https://www.threads.com/@binhnguyensolo" target="_blank" rel="noopener">Threads<em>@binhnguyensolo</em></a>
+        <a class="group" href="https://www.facebook.com/groups/1343186874555458" target="_blank" rel="noopener">
+          <b>Facebook support group</b><span>&rarr;</span>
+        </a>
+      </div>
+
+      <div>
+        <div class="chlab">English <span>— Binh Nguyen</span></div>
+        <a class="ch" href="https://www.facebook.com/binhnguyensol" target="_blank" rel="noopener">Facebook<em>binhnguyensol</em></a>
+        <a class="ch" href="https://www.youtube.com/@binhnguyensol" target="_blank" rel="noopener">YouTube<em>@binhnguyensol</em></a>
+        <a class="ch" href="https://www.tiktok.com/@binhnguyensol" target="_blank" rel="noopener">TikTok<em>@binhnguyensol</em></a>
+        <a class="ch" href="https://x.com/binhnguyensol" target="_blank" rel="noopener">X<em>@binhnguyensol</em></a>
+        <a class="ch" href="https://www.linkedin.com/in/binhnguyensol" target="_blank" rel="noopener">LinkedIn<em>in/binhnguyensol</em></a>
+        <a class="ch" href="https://www.instagram.com/binhnguyensol/" target="_blank" rel="noopener">Instagram<em>@binhnguyensol</em></a>
+        <a class="ch" href="https://www.threads.com/@binhnguyensol" target="_blank" rel="noopener">Threads<em>@binhnguyensol</em></a>
+        <a class="group" href="https://www.facebook.com/groups/1570411591501058" target="_blank" rel="noopener">
+          <b>Facebook support group</b><span>&rarr;</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="foot">
+    Numbers come straight from Stripe and are never edited by hand. Refunds and cancellations pull this number down.<br>
+    Every change to it is a public commit — <a id="histLink" href="#">read the whole history</a>.
+  </div>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var REPO = 'soloagency/solo-agency';
+  var REVENUE_PATH = 'binhnguyen_revenue/revenue.json';   // where the server commits it
+  var CODE_URL = 'https://github.com/soloagency/solo-agency';
+
+  var MILESTONES = [100, 500, 1000, 5000, 10000, 50000, 100000];
+  var $ = function(id){ return document.getElementById(id); };
+
+  var usd = function(cents, whole){
+    var v = cents / 100;
+    return '$' + v.toLocaleString('en-US', {
+      minimumFractionDigits: (whole || v % 1 === 0) ? 0 : 2,
+      maximumFractionDigits: (whole || v % 1 === 0) ? 0 : 2
+    });
+  };
+
+  // Flags built from the ISO code with regional indicators. A machine without a
+  // flag font shows the two letters instead, which still reads and never breaks
+  // the layout.
+  var flag = function(cc){
+    if (!cc || cc.length !== 2) return '';
+    return String.fromCodePoint.apply(null, cc.toUpperCase().split('').map(function(ch){
+      return 0x1F1E6 + ch.charCodeAt(0) - 65;
+    }));
+  };
+
+  var shown = 0;
+  function countTo(el, cents){
+    var from = shown, to = cents, t0 = 0, dur = 750;
+    if (from === to) { el.textContent = usd(to); return; }
+    function step(t){
+      if (!t0) t0 = t;
+      var k = Math.min(1, (t - t0) / dur);
+      k = 1 - Math.pow(1 - k, 3);
+      el.textContent = usd(Math.round(from + (to - from) * k), true);
+      if (k < 1) requestAnimationFrame(step); else el.textContent = usd(to);
+    }
+    requestAnimationFrame(step);
+    shown = to;
+  }
+
+  function ago(ts){
+    var s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+    if (s < 60) return 'updated ' + s + 's ago';
+    if (s < 3600) return 'updated ' + Math.floor(s / 60) + 'm ago';
+    return 'updated ' + Math.floor(s / 3600) + 'h ago';
+  }
+
+  function dayIndex(since){
+    return Math.floor((Date.now() / 1000 - since) / 86400) + 1;
+  }
+
+  // The launch instant is midnight in Vietnam, so render it in Vietnam time for
+  // everyone. Left to the viewer's own timezone, a reader in the US sees the day
+  // before and the board contradicts every post that names the date.
+  function launchDate(ts, withYear){
+    var o = {timeZone: 'Asia/Ho_Chi_Minh', month: 'long', day: 'numeric'};
+    if (withYear) o.year = 'numeric';
+    return new Date(ts * 1000).toLocaleDateString('en-US', o);
+  }
+
+  function ordinal(n){
+    var s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  function renderSpark(since, daily){
+    var box = $('spark');
+    box.textContent = '';
+    var byDay = {};
+    daily.forEach(function(d){ byDay[d.d] = d.c; });
+    var days = Math.max(1, Math.min(120, dayIndex(since)));
+    var vals = [];
+    for (var i = 0; i < days; i++){
+      var dt = new Date((since + i * 86400) * 1000);
+      vals.push(Math.max(0, byDay[dt.toISOString().slice(0, 10)] || 0));
+    }
+    // With nothing earned yet the whole chart is a row of 2px stubs under a big
+    // empty box, which reads as a render bug. Hide it until there is money.
+    var max = Math.max.apply(null, vals);
+    box.style.display = max > 0 ? 'flex' : 'none';
+    if (max <= 0) return;
+    vals.forEach(function(v){
+      var i2 = document.createElement('i');
+      i2.style.height = (v > 0 ? Math.max(5, Math.round(v / max * 64)) : 2) + 'px';
+      if (v > 0) i2.className = 'on';
+      box.appendChild(i2);
+    });
+  }
+
+  function renderWall(wall){
+    var box = $('wall');
+    box.textContent = '';
+    if (!wall.length){
+      for (var i = 1; i <= 3; i++){
+        var e = document.createElement('div');
+        e.className = 'empty';
+        e.innerHTML = '<span style="font-family:var(--mono);width:26px">' +
+                      String(i).padStart(2, '0') + '</span><span>— empty —</span>';
+        box.appendChild(e);
+      }
+      $('wallNote').textContent = 'Seat 1 is still empty.';
+      return;
+    }
+    $('wallNote').textContent = wall.length + ' seats taken · seat numbers never change';
+    wall.forEach(function(w){
+      var r = document.createElement('div');
+      r.className = 'row';
+      var anon = !w.display;
+      r.innerHTML =
+        '<div class="seat' + (w.seat === 1 ? ' first' : '') + '">' + String(w.seat).padStart(2, '0') + '</div>' +
+        '<div class="flag">' + flag(w.cc) + '</div>' +
+        '<div class="who' + (anon ? ' anon' : '') + '"></div>' +
+        '<div class="cc"></div>' +
+        '<div class="plan' + (w.status === 'canceled' ? ' out' : '') + '"></div>' +
+        '<div class="meta">#' + w.code + '</div>' +
+        '<div class="meta">D' + w.day + '</div>';
+      r.querySelector('.who').textContent = anon ? '— seat taken —' : w.display;
+      r.querySelector('.cc').textContent = w.cc || '';
+      r.querySelector('.plan').textContent = w.status === 'canceled' ? 'left' : (w.plan || '');
+      box.appendChild(r);
+    });
+  }
+
+  function paint(d){
+    $('ago').textContent = ago(d.updated);
+
+    // A start date can also be set in the FUTURE, which is the normal case in the
+    // hours between choosing the date and reaching it. Without this the day
+    // counter goes to zero or negative and the page looks broken.
+    var pending = !(d.since > 0) || d.since > Date.now() / 1000;
+    if (pending){
+      var when = d.since > 0 ? launchDate(d.since, true) : '';
+      $('totalLab').textContent = 'Not started yet';
+      $('total').textContent = '$0';
+      $('totalNote').textContent = when
+        ? 'The system is live and recording. This board opens on ' + when + '.'
+        : 'The system is live and recording. This board opens on the day the experiment starts.';
+      $('sideLab').textContent = 'Starting';
+      $('sideVal').textContent = d.since > 0 ? launchDate(d.since, false) : '—';
+      $('sideNote').textContent = 'waiting for day one.';
+      $('t1lab').textContent = 'Recurring revenue';
+      $('t1val').innerHTML = '$0<small>/mo</small>';
+      $('seats').textContent = '0';
+      $('txns').textContent = '0';
+      $('refunds').textContent = '$0';
+      $('goal').textContent = '—';
+      $('goalBar').style.width = '0%';
+      renderSpark(0, []);
+      renderWall([]);
+      return;
+    }
+
+    var day = dayIndex(d.since);
+    var zero = d.total_cents <= 0;
+
+    $('totalLab').textContent = 'Total revenue since ' + launchDate(d.since, true);
+    countTo($('total'), Math.max(0, d.total_cents));
+
+    // The hero and the first tile swap roles so no number is ever shown twice.
+    if (zero){
+      $('sideLab').textContent = 'Day';
+      $('sideVal').textContent = String(day).padStart(2, '0');
+      $('sideNote').textContent = 'at zero dollars. The meditation continues.';
+      $('t1lab').textContent = 'Recurring revenue';
+      $('t1val').innerHTML = usd(d.mrr_cents, true) + '<small>/mo</small>';
+    } else {
+      $('sideLab').textContent = 'Recurring revenue';
+      $('sideVal').textContent = usd(d.mrr_cents, true);
+      $('sideNote').textContent = 'per month · ' + ordinal(day) + ' day of the experiment';
+      $('t1lab').textContent = 'Day';
+      $('t1val').textContent = day;
+    }
+
+    $('seats').textContent = d.seats_taken;
+    $('txns').textContent = d.transactions;
+    $('refunds').textContent = d.refunds_cents ? '−' + usd(d.refunds_cents, true) : '$0';
+    $('refunds').style.color = d.refunds_cents ? 'var(--red)' : '';
+
+    var dollars = Math.max(0, d.total_cents) / 100;
+    var goal = MILESTONES.find(function(m){ return m > dollars; }) || MILESTONES[MILESTONES.length - 1];
+    $('goal').textContent = zero
+      ? '$0 / $' + goal.toLocaleString('en-US')
+      : '$' + Math.ceil(goal - dollars).toLocaleString('en-US') + ' to go until $' + goal.toLocaleString('en-US');
+    $('goalBar').style.width = Math.max(0.4, Math.min(100, dollars / goal * 100)) + '%';
+
+    renderSpark(d.since, d.daily || []);
+    renderWall(d.wall || []);
+  }
+
+  function tick(){
+    fetch('revenue.json?t=' + Date.now(), {cache: 'no-store'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d) paint(d); })
+      .catch(function(){ /* keep the last number on screen, never flash back to 0 */ });
+  }
+
+  $('ctaCode').href = CODE_URL;
+  $('histLink').href = REPO
+    ? 'https://github.com/' + REPO + '/commits/main/' + REVENUE_PATH
+    : '#';
+  tick();
+  setInterval(tick, 5000);
+})();
+</script>
+</body>
+</html>
